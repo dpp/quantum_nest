@@ -2,7 +2,7 @@ package quantum_nest.json_ld
 
 import quantum_nest.clojure.Util;
 
-class LoadsJsonLD extends munit.FunSuite:
+class LoadsJsonLD extends munit.FunSuite {
   test("evaluate a Clojure expression") {
     val obtained = Util.eval("(+ 41 1)").asInstanceOf[java.lang.Long].intValue()
     val expected = 42
@@ -15,3 +15,4 @@ class LoadsJsonLD extends munit.FunSuite:
     assertEquals("hello", symbol.getName())
   }
 
+}

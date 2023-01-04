@@ -1,0 +1,33 @@
+{
+    "type": "routes",
+    "routes": [
+        {
+            "method": "GET",
+            "route": [
+                ".well-known",
+                "webfinger"
+            ],
+            "queryParams": [
+                {
+                    "resource": [
+                        "!! (-> it valid-format clojure.string/lower-case)",
+                        "(built-in/entities :users it)",
+                        "(built-in/set-var :user it)"
+                    ]
+                }
+            ],
+            "headers": [
+                {
+                    "accept": [
+                        "(built-in/includes-string `application/activity+json`)"
+                    ]
+                }
+            ],
+            "message": {
+                "id": "gen-id",
+                "type": ":finger",
+                "user_id": "(built-in/get-var :user)"
+            }
+        }
+    ]
+}

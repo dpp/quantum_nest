@@ -1,0 +1,5 @@
+.metals
+*.swp
+.vscode
+.scalafmt.conf
+
