@@ -5,7 +5,6 @@ import clojure.lang.Symbol;
 import clojure.lang.Var;
 import clojure.java.api.Clojure;
 import clojure.lang.IFn
-import quantum_nest.ClojureCompiler
 import scala.jdk.CollectionConverters._
 
 object Util {

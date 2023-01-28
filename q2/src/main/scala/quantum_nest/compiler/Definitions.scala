@@ -10,7 +10,6 @@ import net.liftweb.common.Empty
 import net.liftweb.common.EmptyBox
 import net.liftweb.common.Full
 import net.liftweb.common.Failure
-import quantum_nest.ClojureCompiler
 import clojure.lang.IFn
 
 case class Definitions(definitions: List[Definition]) extends CompilerArtifact {
