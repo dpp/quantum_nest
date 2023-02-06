@@ -3,32 +3,13 @@
  */
 package nest.app
 
-import nest.utilities.StringUtils
+import nest.clojure.Util
 
-import org.apache.commons.text.WordUtils
-import clojure.lang.RT;
-import clojure.lang.Symbol;
-import clojure.lang.Var;
-import clojure.java.api.Clojure;
 @Suppress("PLATFORM_CLASS_MAPPED_TO_KOTLIN", "UNCHECKED_CAST")
 fun main() {
-    val tokens = StringUtils.split(MessageUtils.getMessage())
-    val result = StringUtils.join(tokens)
-    println(WordUtils.capitalize(result))
-
     println("Hello, world")
 
-
-    println("Eval $ClojureEval")
-    val question: Object = Clojure.read("(+ 41 1)") as Object
+    val question: Object = Util.read("(+ 41 1)")
     println("Question " + question + " class " + question.getClass())
-    println("Answer " + ClojureEval.invoke(question))
+    println("Answer " + Util.eval(question))
 }
-
-
-
-   val ClojureRequire: Var = RT.`var`("clojure.core", "require");
-   val ClojureEval: Var = RT.`var`("clojure.core", "eval");
-
-
-

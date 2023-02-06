@@ -7,7 +7,6 @@ plugins {
     // Support convention plugins written in Groovy. Convention plugins are build scripts in 'src/main' that automatically become available as plugins in the main build.
     id 'groovy-gradle-plugin'
     id "dev.clojurephant.clojure" version "0.6.0"
-    id 'nest.kotlin-library-conventions'
     id 'nest.kotlin-application-conventions'
 }
 
@@ -33,7 +32,7 @@ repositories {
 dependencies {
 
     implementation 'org.apache.commons:commons-text'
-    implementation project(':utilities')
+    // implementation project(':utilities')
 
     // requires a version of Clojure with prepl (1.10+)
   implementation 'org.clojure:clojure:1.11.1'
