@@ -3,13 +3,13 @@
  */
 package nest.app
 
-import nest.clojure.Util
+import nest.clojure.ClUtil
 
 @Suppress("PLATFORM_CLASS_MAPPED_TO_KOTLIN", "UNCHECKED_CAST")
 fun main() {
     println("Hello, world")
 
-    val question: Object = Util.read("(+ 41 1)")
+    val question: Object = ClUtil.read("(+ 41 1)")
     println("Question " + question + " class " + question.getClass())
-    println("Answer " + Util.eval(question))
+    println("Answer " + ClUtil.eval(question))
 }

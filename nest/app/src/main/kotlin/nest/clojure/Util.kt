@@ -2,8 +2,10 @@ package nest.clojure
 
 import clojure.java.api.Clojure
 import clojure.lang.IFn
+import clojure.lang.IPersistentList
+import clojure.lang.IPersistentMap
 import clojure.lang.PersistentHashMap as ClMap
-import clojure.lang.PersistentList as ClList
+import clojure.lang.PersistentList
 import clojure.lang.RT
 import clojure.lang.Symbol
 import clojure.lang.Var
@@ -12,10 +14,8 @@ import java.util.*
 import java.util.List as JList
 import java.util.Map as JMap
 
-// @Suppress("UNCHECKED_CAST")
-
 @Suppress("PLATFORM_CLASS_MAPPED_TO_KOTLIN", "UNCHECKED_CAST")
-object Util {
+object ClUtil {
 
   val ClojureRequire: Var = RT.`var`("clojure.core", "require")
   val ClojureEval: Var = RT.`var`("clojure.core", "eval")
@@ -74,7 +74,8 @@ object Util {
    * list, cast to the parameterized type. If it's a normal Java list, just `add` the element.
    */
   fun <T> cons(list: JList<T>, element: T): JList<T> {
-    if (list is ClList) {
+    println("list class ${(list as Object).getClass()}")
+    if (list is IPersistentList) {
       return list.cons(element) as JList<T>
     }
 
@@ -82,8 +83,22 @@ object Util {
     return list
   }
 
+  fun <T> buildList(vararg x: T): JList<T> {
+    var ret: JList<T> = PersistentList.EMPTY as JList<T>
+
+    for (z in x) {
+      ret = cons(ret, z)
+    }
+
+    return ret
+  }
+
+  fun <K, V> newMap(): JMap<K, V> {
+    return ClMap.EMPTY as JMap<K, V>
+  }
+
   fun <K, V> add(map: JMap<K, V>, key: K, value: V): JMap<K, V> {
-    if (map is ClMap) {
+    if (map is IPersistentMap) {
       return map.assoc(key, value) as JMap<K, V>
     }
 
