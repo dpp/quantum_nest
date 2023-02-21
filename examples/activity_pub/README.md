@@ -12,3 +12,5 @@ has the basic structure of ActivityPub. This is what we will implement.
 
 * The Actor
 * Web Finger
+
+

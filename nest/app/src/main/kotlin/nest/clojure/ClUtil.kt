@@ -74,7 +74,6 @@ object ClUtil {
    * list, cast to the parameterized type. If it's a normal Java list, just `add` the element.
    */
   fun <T> cons(list: JList<T>, element: T): JList<T> {
-    println("list class ${(list as Object).getClass()}")
     if (list is IPersistentList) {
       return list.cons(element) as JList<T>
     }
