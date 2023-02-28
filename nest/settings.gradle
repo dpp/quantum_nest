@@ -8,4 +8,4 @@
  */
 
 rootProject.name = 'nest'
-include('app') // , 'list', 'utilities')
+include('app') 

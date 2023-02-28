@@ -21,8 +21,8 @@ class MessageBasics {
     fun testLoadMsg() {
         forEachFile({ toLoad: String ->
             val inputStream = FileInputStream(toLoad)
-            val jsonObject = JsonUtils.fromInputStream(inputStream)
-            println((jsonObject as Object).getClass())
+            val jsonObject: Object? = JsonUtils.fromInputStream(inputStream) as Object?
+           
             assert(jsonObject != null)
         })
     }

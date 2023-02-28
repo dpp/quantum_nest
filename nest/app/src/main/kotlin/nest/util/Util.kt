@@ -6,7 +6,7 @@ import arrow.core.None
 
 
 public object Helpers {
-        pub fun <A>tryIt(fn: () -> A): Box<A> {
+        public fun <A>tryIt(fn: () -> A): Box<A> {
                 return try {
                         Full(fn())
                 } catch (e: Exception) {
@@ -19,28 +19,30 @@ public sealed class Box<out T> {
         public fun <S>map(fn: (T) -> S) : Box<S> {
               return  when (this) {
                 is Full -> Full(fn(value))
-                else this
+                is Empty -> Empty
+                is Failure -> this 
                 }
         }
 
         public fun <S>flatMap(fn: (T) -> Box<S>): Box<S> {
                               return  when (this) {
                 is Full -> fn(value)
-                else this
+                is Empty -> Empty
+                is Failure -> this
                 }
         }
 
         public fun toOption(): Option<T> {
                 return when (this) {
                         is Full -> Some(value)
-                        else None
+                        else -> None
                 }
         }
 
         public fun toList(): List<T> {
                 return when(this) {
                         is Full -> listOf(value)
-                        else listOf()
+                        else -> listOf()
                 }
         }
 }
