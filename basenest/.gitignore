@@ -1,0 +1,6 @@
+.bloop/*
+.metals/*
+.vscode/*
+target/*
+.clj-kondo/*
+.lsp/*
