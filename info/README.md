@@ -134,7 +134,7 @@ by reference.
 
 In pseudo-code:
 
-```
+```java
 http_response := first_of(user_name_handler, failure_handlers, timeout_handlers)
 ```
 
