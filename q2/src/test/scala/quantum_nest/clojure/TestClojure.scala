@@ -1,4 +1,4 @@
-package quantum_nest.clojure
+package org.quantumnest.clojure
 
 import net.liftweb.util.Helpers;
 import java.io.File

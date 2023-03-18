@@ -1,4 +1,4 @@
-package quantum_nest.clojure
+package org.quantumnest.clojure
 
 import clojure.lang.RT;
 import clojure.lang.Symbol;

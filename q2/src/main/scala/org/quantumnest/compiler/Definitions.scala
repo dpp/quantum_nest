@@ -1,4 +1,5 @@
-package quantum_nest.compiler
+package org.quantumnest.compiler
+
 
 import net.liftweb.json.JsonAST
 import net.liftweb.common.Box
@@ -63,3 +64,4 @@ object Definition {
 
   }
 }
+

@@ -1,4 +1,4 @@
-package quantum_nest.compiler
+package org.quantumnest.compiler
 
 import net.liftweb.json._
 // import net.liftweb.json.JsonAST._
@@ -75,3 +75,4 @@ object Route {
     write(source)
   }
 }
+

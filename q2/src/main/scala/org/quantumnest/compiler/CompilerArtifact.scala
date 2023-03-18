@@ -1,4 +1,5 @@
-package quantum_nest.compiler
+package org.quantumnest.compiler
+
 
 import net.liftweb.common.{Box, Full, EmptyBox, Empty,  Failure}
 import net.liftweb.util.Helpers
@@ -33,3 +34,4 @@ object CompilerArtifact {
     }
   }
 }
+

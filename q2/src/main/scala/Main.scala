@@ -2,6 +2,8 @@ import clojure.lang.RT;
 import clojure.lang.Symbol;
 import clojure.lang.Var;
 import clojure.java.api.Clojure;
+import org.quantumnest.util.SimpleChannel
+import org.quantumnest.server.Server
 
 object Hello {
   def main(args: Array[String]) = {
@@ -12,6 +14,11 @@ object Hello {
     val question = Clojure.read("(+ 41 1)")
     println("Question " + question + " class " + question.getClass())
     println("Answer " + ClojureEval.invoke(question))
+    Server.start(new SimpleChannel())
+    while (true) {
+      Thread.sleep(50)
+    }
+
   }
 
   def msg = "I was compiled by Scala 3. :)"

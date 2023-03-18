@@ -1,4 +1,4 @@
-#_{:clj-kondo/ignore [:namespace-name-mismatch]}
+#_{:clj-kondo/ignore [:namespace-name-mismatch :unused-binding :unused-public-var]}
 (ns yak-smell)
 
 (require 'clojure.string)
