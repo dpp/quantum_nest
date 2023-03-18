@@ -6,17 +6,120 @@ import net.liftweb.util.Helpers
 import java.util.concurrent.TimeUnit
 import scala.annotation.switch
 import net.liftweb.common.Empty
+import java.util.WeakHashMap
+import java.lang.ref.WeakReference
+import java.util.UUID
+import scala.reflect.runtime.universe._
 
-object Util {
-    type MessageShape = java.util.Map[Symbol, String]
+/** The envelope around a message
+  */
+trait Envelope {
+
+  /** Get the response channel if one is associated with this envelope
+    *
+    * @return
+    *   the optional return channel for the message contained in this envelope
+    */
+  def getResponseChannel(): Box[Channel[Envelope]]
+
+  /** Get the mime type of the message payload. The payload is a series of
+    * symbol/value pairs.
+    *
+    * @return
+    *   the payload type
+    */
+  def getMimeType(): PayloadType
+
+  /** Get the envolope's message payload
+    *
+    * @return
+    *   the message payload
+    */
+  def getPayload(): MessageValue.MessageShape
+
+  /** Create a new Envelope with a new channel
+    *
+    * @param channel
+    *   \- the channel for the new envelope
+    * @return
+    *   the updated envelope
+    */
+  def withNewChannel(channel: Box[Channel[Envelope]]): Envelope
+
+  /** Create a new Envelope with a new payload
+    *
+    * @param payload the payload
+    * @return a new `Envelope` instance
+    */
+  def withNewPayload(payload: MessageValue.MessageShape): Envelope
+}
+
+object Envelope {
+  def apply(
+      responseChannel: Box[Channel[Envelope]],
+      payload: MessageValue.MessageShape,
+      mimeType: PayloadType
+  ): Envelope = new SimpleEnvelope(responseChannel, payload, mimeType)
+}
+
+class SimpleEnvelope(
+    responseChannel: Box[Channel[Envelope]],
+    payload: MessageValue.MessageShape,
+    mimeType: PayloadType
+) extends Envelope {
+
+  /** Get the response channel if one is associated with this envelope
+    *
+    * @return
+    *   the optional return channel for the message contained in this envelope
+    */
+  def getResponseChannel(): Box[Channel[Envelope]] = responseChannel
+
+  /** Get the mime type of the message payload. The payload is a series of
+    * symbol/value pairs.
+    *
+    * @return
+    *   the payload type
+    */
+  def getMimeType(): PayloadType = mimeType
+
+  /** Get the envolope's message payload
+    *
+    * @return
+    *   the message payload
+    */
+  def getPayload(): MessageValue.MessageShape = payload
+
+  /** Create a new Envelope with a new channel
+    *
+    * @param channel
+    *   \- the channel for the new envelope
+    * @return
+    *   the updated envelope
+    */
+  def withNewChannel(channel: Box[Channel[Envelope]]): Envelope =
+    new SimpleEnvelope(channel, payload, mimeType)
+
+  /** Create a new Envelope with
+    *
+    * @param payload
+    * @return
+    */
+  def withNewPayload(payload: MessageValue.MessageShape): Envelope =
+    new SimpleEnvelope(responseChannel, payload, mimeType)
 }
 
 /** A simple multi-producer, multi-consumer channel.
   *
   * It's really a thin wrapper in `LinkedTransferQueue`
   */
-class SimpleChannel[T] extends Channel[T] {
-  lazy val queue = new LinkedTransferQueue[T]()
+class SimpleChannel[T](implicit manifest: TypeTag[T]) extends Channel[T] {
+  private lazy val queue = new LinkedTransferQueue[T]()
+  private val uuid = UUID.randomUUID()
+
+  def SimpleChannel()(implicit m: TypeTag[T]) {
+    Channel.addChannel(this)
+  }
 
   def send(v: T): Boolean = {
     queue.add(v)
@@ -33,6 +136,19 @@ class SimpleChannel[T] extends Channel[T] {
       case x          => x
     }
   }
+
+  def getUUID(): String = {
+    this.uuid.toString()
+  }
+
+  def getURL(): String = {
+    f"localchannel:${this.getUUID()}"
+  }
+
+  def asA[A](implicit m: TypeTag[A]): Box[Channel[A]] = {
+    if (this.manifest == m) Full(this).asInstanceOf[Box[Channel[A]]]
+    else Empty
+  }
 }
 
 trait Channel[T] {
@@ -41,5 +157,38 @@ trait Channel[T] {
   def receive(): Box[T]
 
   def receive(timeout: Long): Box[T]
+
+  def getUUID(): String
+
+  def getURL(): String
+
+  def asA[A](implicit m: TypeTag[A]): Box[Channel[A]]
 }
 
+object Channel {
+  private var localMap: WeakHashMap[String, WeakReference[Channel[_]]] =
+    new WeakHashMap()
+
+  def apply[T](implicit manifest: TypeTag[T]): Channel[T] = new SimpleChannel[T]
+
+  def addChannel(channel: Channel[_]) {
+    localMap.synchronized {
+      localMap.put(channel.getUUID(), new WeakReference(channel))
+    }
+  }
+
+  def locateChannel[T: TypeTag](uuid: String): Box[Channel[T]] = {
+    localMap.synchronized {
+      localMap.get(uuid) match {
+        case null => Empty
+        case wr => {
+          wr.get() match {
+            case null => Empty
+            case ch   => ch.asA[T]
+          }
+        }
+      }
+
+    }
+  }
+}

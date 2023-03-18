@@ -5,10 +5,10 @@ import java.util.concurrent.atomic.AtomicReference
 import java.util.concurrent.Executors
 import java.util.concurrent.ExecutorService
 import java.net.InetSocketAddress
-import org.quantumnest.util.{Channel, Util}
+import org.quantumnest.util.{Channel, MessageValue}
 
 object Server {
-  def start(commChannel: Channel[Util.MessageShape]) {
+  def start(commChannel: Channel[MessageValue.MessageShape]) {
     
     val server = HttpServer.create(new InetSocketAddress(8000), 0);
     server.createContext("/", new Server(commChannel));
@@ -19,7 +19,7 @@ object Server {
   }
 }
 
-class Server(commChannel: Channel[Util.MessageShape]) extends HttpHandler {
+class Server(commChannel: Channel[MessageValue.MessageShape]) extends HttpHandler {
   private val routes: AtomicReference[Object] = new AtomicReference()
   private val executor: ExecutorService = Executors.newVirtualThreadPerTaskExecutor() // Executors.newFixedThreadPool(10);
   override def handle(request: HttpExchange): Unit = {
