@@ -116,11 +116,8 @@ class SimpleEnvelope(
 class SimpleChannel[T](implicit manifest: TypeTag[T]) extends Channel[T] {
   private lazy val queue = new LinkedTransferQueue[T]()
   private val uuid = UUID.randomUUID()
-
-  def SimpleChannel()(implicit m: TypeTag[T]) {
-    Channel.addChannel(this)
-  }
-
+  Channel.addChannel(this)
+ 
   def send(v: T): Boolean = {
     queue.add(v)
   }
@@ -149,6 +146,18 @@ class SimpleChannel[T](implicit manifest: TypeTag[T]) extends Channel[T] {
     if (this.manifest == m) Full(this).asInstanceOf[Box[Channel[A]]]
     else Empty
   }
+
+  /**
+    * Each channel has a unique UUID. Comparing two channels is
+    * the comparison of the UUID and nothing else
+    *
+    * @param x the other thing to compare
+    * @return true if the thing is a Channel and it has the same UUID as this channel
+    */
+  override def equals(x: Any): Boolean = x match {
+    case ch: Channel[_] => ch.getUUID() == this.getUUID()
+    case _ => false
+  }
 }
 
 trait Channel[T] {
@@ -169,7 +178,7 @@ object Channel {
   private var localMap: WeakHashMap[String, WeakReference[Channel[_]]] =
     new WeakHashMap()
 
-  def apply[T](implicit manifest: TypeTag[T]): Channel[T] = new SimpleChannel[T]
+  def apply[T]()(implicit manifest: TypeTag[T]): Channel[T] = new SimpleChannel[T]
 
   def addChannel(channel: Channel[_]) {
     localMap.synchronized {

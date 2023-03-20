@@ -6,6 +6,8 @@ import clojure.lang.Var;
 import clojure.java.api.Clojure;
 import clojure.lang.IFn
 import scala.jdk.CollectionConverters._
+import net.liftweb.util.Helpers
+import net.liftweb.common.Box
 
 object Util {
   lazy val ClojureRequire = RT.`var`("clojure.core", "require");
@@ -45,9 +47,15 @@ object Util {
 
   }
 
-  def eval(s: String): Object = {
+  /**
+    * Evaluate a String that represents a Clojure expression
+    *
+    * @param s the Clojure expression
+    * @return the value rendered by the expression
+    */
+  def eval(s: String): Box[Object] = {
     val parsed = Clojure.read(s)
-    ClojureEval.invoke(parsed)
+    Helpers.tryo(ClojureEval.invoke(parsed))
   }
 
   def loadClojureResource(resourceName: String): Object = {
@@ -57,4 +65,6 @@ object Util {
 
   def symbolFor(s: String): Symbol =
     Symbol.create(s)
+
+  
 }

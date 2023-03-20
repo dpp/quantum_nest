@@ -1,5 +1,9 @@
 # Quantum Nest
 
+A chronical of [design thoughts](design_thoughts.md).
+
+## Overview
+
 Substantially all of development is a series of message management
 and set/state management operations, both persistent and local/non-persistent
 state.

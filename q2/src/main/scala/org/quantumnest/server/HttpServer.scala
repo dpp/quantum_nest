@@ -29,11 +29,11 @@ class Server(commChannel: Channel[MessageValue.MessageShape]) extends HttpHandle
   }
 
   private def threadedHandle(request: HttpExchange): Unit = {
-    println("In thread handle")
+   
     val method = request.getRequestMethod()
     val uri = request.getRequestURI()
     uri.getRawPath()
-    println(f"Got ${uri.getRawPath()}")
+   
 
     val response = f"This is the response ${uri.getRawPath()}\n\n";
     request.sendResponseHeaders(200, response.length())
