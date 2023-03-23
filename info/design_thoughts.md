@@ -2,6 +2,174 @@
 
 This file contains reverse chronological design thoughts.
 
+## 2023/03/23 -- Common Semantics
+
+### Quantum
+
+In Quantum Nest, the "Quantum" is a discrete combination of state and compute. While "stuff" happens
+inside the Quantum, the external manifestations are messages in and messages out.
+
+When the system receives an incoming message, it associates that message with a handler. The combination
+of the incoming message and associated handler creates a Quantum... the state and the compute required
+to handle the message.
+
+### Guards
+
+A given message type (e.g., an HTTP Request message) will be handled based on matching
+a "route" (a request path) along with other logic. For example:
+
+```json
+    "match-message": "HTTPRequest",
+    "type": "routes",
+    "routes": [
+        {
+            "method": "GET",
+            "route": [
+                ".well-known",
+                "webfinger"
+            ],
+            "guards": {
+                "query-params": [
+                    {
+                        "resource": [
+                            {
+                                "exec-and-update": "(-?> it first valid-format clojure.string/lower-case) ;; get the 'resource' parameter and set the value to the extracted value"
+                            }
+                        ]
+                    }
+                ],
+                "headers": [
+                    {
+                        "accept": [
+                            {
+                                "exec": "(built-in/includes-string it `application/activity+json`)"
+                            }
+                        ]
+                    }
+                ]
+            }
+        }
+    ],
+```
+
+The above matches `HTTPRequest` message types.
+
+The matching/guarding is based on a "routes" set of test.
+
+There is one route... a `GET` method to `.well-known/webfinger`.
+
+If the URL is matched, then there are tests of both the query parameters and the headers and optionally the body for `POST`/`PUT` requests.
+
+the `queryParams` tests the `resource` parameter. There may be multiple values of `resource` and it must be in a valid format.
+The `-?>` threads `it` (borrowing from Groovy) through a series of functions and if the value
+returned from any of the functions is falsy (`false` or `null`/`nil` or `Empty` or `None`),
+the threading terminates. Any of the falsy values will result in the guard failing. `first` returns the first
+element of the array. `valid-format` is a custom function that extracts the username from the parameter or returns a falsy
+value. Finally, the resulting `String` is converted to lower case.
+
+`exec-and-update` sets `query-params/resource/value#computed` to the resulting `String`.
+
+The `headers` section ensures that the response will accept `application/activity+json`.
+
+Once the guards succeed, the Quantum (unit of state and compute) is created with the `origin` message
+and message passing and computation begins.
+
+#### Quantum State Graph
+
+The heart of Quantum Nest is the State Graph. Explicit state items are defined:
+
+```json
+    "state": {
+        "user": {
+            "from_message": "origin",
+            "exec": "(-> it :query-params :resource :#computed)"
+        },
+        "user-info": {
+            "from_message": "get-user-info#response",
+            "exec": "(it :body)"
+        },
+        "timed-out": {
+            "from_message": "timeout#response"
+        }
+    },
+```
+
+The above defines three state elements.
+
+`user` is computed from the `origin` message. This is the incoming message that create the
+Quantum. The incoming message (as enhanced by `exec-and-update` declarations in the guard)
+is traversed to get the `#computed` (as compared to the `#original`) query parameter.
+
+`user-info` is computed based on getting the `:body` of the response to the `get-user-info` message.
+
+
+```mermaid
+graph LR;
+
+subgraph http_request[Origin Message]
+Origin
+end
+
+subgraph State[Quantum State]
+USER
+UN
+end
+
+subgraph External to Quantum
+Get_User
+Get_User_Response
+end
+
+Origin-- query-params -> resource -> computed -->USER
+USER[User State]-- Generate Message -->Get_User
+Get_User[get-user-info]-- Processed 'somewhere' -->Get_User_Response[get-user-info#response]
+Get_User_Response-->UN[user-info]
+```
+
+Thus, the `user-info` state variable will not materialize until the `get-user-info#response` message
+is received.
+
+`timed-out` is computed by the receipt of the `timeout#response` message.
+
+### Timeouts
+
+Time is a message. The following lines create the message:
+
+```json
+"messages": {
+        "#timeout": 4000,
+```
+
+The synthetic `timeout#response` message will be received 4000ms after the message is created.
+
+### Predicates that are only tested for existence
+
+In some cases, the existence of a message or a change in state will trigger the sending of a message.
+
+For example, the receipt of a `#timeout` message updates the `timed-out` state:
+
+```json
+        "timed-out": {
+            "from_message": "timeout#response"
+        }
+```
+
+And the resolution of the state triggers the creation and sending of the `timeout` HTTP Response:
+
+```json
+        "#response": {
+            "timeout": {
+                "id": "response",
+                "response_code": 404,
+                "response_string": "Not Found, Timeout",
+                "headers": {
+                    "Content-Type": "application/activity+json; charset=utf-8"
+                },
+                "#trigger": {"from_state": "timed-out"},
+                "body": {}
+            },
+```
+
 ## 2023/03/20 -- Some random thoughts
 
 Putting down the random thoughts here for further exploration.

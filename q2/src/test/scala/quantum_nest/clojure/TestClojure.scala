@@ -27,6 +27,18 @@ class ClojureStuff extends munit.FunSuite {
     assertEquals(obtained, expected)
   }
 
+  test("Test clojure expression with comments") {
+    val obtained = Util.eval("(+ 41 1) ;; frogs")
+    val expected = Full(42L.asInstanceOf[Object])
+    assertEquals(obtained, expected)
+  }
+
+  test("Test clojure expression with comments II") {
+    val obtained = Util.eval(" #_(this is ignored) (+ 41 1)")
+    val expected = Full(42L.asInstanceOf[Object])
+    assertEquals(obtained, expected)
+  }
+
   test("Create a symbol") {
     val symbol = Util.symbolFor("hello")
 

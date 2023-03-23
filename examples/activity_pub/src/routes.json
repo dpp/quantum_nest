@@ -1,4 +1,5 @@
 {
+    "match-message": "HTTPRequest",
     "type": "routes",
     "routes": [
         {
@@ -7,27 +8,89 @@
                 ".well-known",
                 "webfinger"
             ],
-            "queryParams": [
-                {
-                    "resource": [
-                        "!! (-> it valid-format clojure.string/lower-case)",
-                        "(built-in/entities :users it)",
-                        "(built-in/set-var :user it)"
-                    ]
-                }
-            ],
-            "headers": [
-                {
-                    "accept": [
-                        "(built-in/includes-string `application/activity+json`)"
-                    ]
-                }
-            ],
-            "message": {
-                "id": "gen-id",
-                "type": ":finger",
-                "user_id": "(built-in/get-var :user)"
+            "guards": {
+                "query-params": [
+                    {
+                        "resource": [
+                            {
+                                "exec-and-update": "(-?> it first valid-format clojure.string/lower-case) ;; get the 'resource' parameter and set the value to the extracted value"
+                            }
+                        ]
+                    }
+                ],
+                "headers": [
+                    {
+                        "accept": [
+                            {
+                                "exec": "(built-in/includes-string it `application/activity+json`)"
+                            }
+                        ]
+                    }
+                ]
             }
         }
-    ]
+    ],
+    "state": {
+        "user": {
+            "from_message": "#origin",
+            "exec": "(-> it :query-params :resource :#computed)"
+        },
+        "user-info": {
+            "from_message": "get-user-info#response",
+            "exec": "(it :body)"
+        },
+        "timed-out": {
+            "from_message": "timeout#response"
+        }
+    },
+    "messages": {
+        "get-user-info": {
+            "id": "get-user-info",
+            "user_id": {"from_state": "user"}
+        },
+        "#timeout": 4000,
+        "#response": {
+            "timeout": {
+                "id": "response",
+                "response_code": 404,
+                "response_string": "Not Found, Timeout",
+                "headers": {
+                    "Content-Type": "application/activity+json; charset=utf-8"
+                },
+                "#trigger": {"from_state": "timed-out"},
+                "body": {}
+            },
+            "success": {
+                "id": "@response",
+                "response_code": 200,
+                "response_string": "Success",
+                "headers": {
+                    "Content-Type": "application/activity+json; charset=utf-8"
+                },
+                "body": {
+                    "subject": "acct:Gargron@mastodon.social",
+                    "aliases": [
+                        "https://mastodon.social/@Gargron",
+                        "https://mastodon.social/users/Gargron"
+                    ],
+                    "links": [
+                        {
+                            "rel": "http://webfinger.net/rel/profile-page",
+                            "type": "text/html",
+                            "href": "https://mastodon.social/@Gargron"
+                        },
+                        {
+                            "rel": "self",
+                            "type": "application/activity+json",
+                            "href": "https://mastodon.social/users/Gargron"
+                        },
+                        {
+                            "rel": "http://ostatus.org/schema/1.0/subscribe",
+                            "template": "https://mastodon.social/authorize_interaction?uri={uri}"
+                        }
+                    ]
+                }
+            }
+        }
+    }
 }

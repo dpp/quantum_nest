@@ -19,7 +19,7 @@ class TestChannel extends munit.FunSuite {
     Thread
       .ofVirtual()
       .start(() => {
-        val a = chan.receive()
+        val a = chan.receive(56000)
 
         sync.synchronized {
           got.set(true)

@@ -10,6 +10,7 @@ import java.util.WeakHashMap
 import java.lang.ref.WeakReference
 import java.util.UUID
 import scala.reflect.runtime.universe._
+import java.util.concurrent.atomic.AtomicBoolean
 
 /** The envelope around a message
   */
@@ -20,7 +21,7 @@ trait Envelope {
     * @return
     *   the optional return channel for the message contained in this envelope
     */
-  def getResponseChannel(): Box[Channel[Envelope]]
+  def getResponseChannel(): Box[SendChannel[Envelope]]
 
   /** Get the mime type of the message payload. The payload is a series of
     * symbol/value pairs.
@@ -44,7 +45,7 @@ trait Envelope {
     * @return
     *   the updated envelope
     */
-  def withNewChannel(channel: Box[Channel[Envelope]]): Envelope
+  def withNewChannel(channel: Box[SendChannel[Envelope]]): Envelope
 
   /** Create a new Envelope with a new payload
     *
@@ -56,14 +57,14 @@ trait Envelope {
 
 object Envelope {
   def apply(
-      responseChannel: Box[Channel[Envelope]],
+      responseChannel: Box[SendChannel[Envelope]],
       payload: MessageValue.MessageShape,
       mimeType: PayloadType
   ): Envelope = new SimpleEnvelope(responseChannel, payload, mimeType)
 }
 
 class SimpleEnvelope(
-    responseChannel: Box[Channel[Envelope]],
+    responseChannel: Box[SendChannel[Envelope]],
     payload: MessageValue.MessageShape,
     mimeType: PayloadType
 ) extends Envelope {
@@ -73,7 +74,7 @@ class SimpleEnvelope(
     * @return
     *   the optional return channel for the message contained in this envelope
     */
-  def getResponseChannel(): Box[Channel[Envelope]] = responseChannel
+  def getResponseChannel(): Box[SendChannel[Envelope]] = responseChannel
 
   /** Get the mime type of the message payload. The payload is a series of
     * symbol/value pairs.
@@ -83,7 +84,7 @@ class SimpleEnvelope(
     */
   def getMimeType(): PayloadType = mimeType
 
-  /** Get the envolope's message payload
+  /** Get the envelope's message payload
     *
     * @return
     *   the message payload
@@ -97,7 +98,7 @@ class SimpleEnvelope(
     * @return
     *   the updated envelope
     */
-  def withNewChannel(channel: Box[Channel[Envelope]]): Envelope =
+  def withNewChannel(channel: Box[SendChannel[Envelope]]): Envelope =
     new SimpleEnvelope(channel, payload, mimeType)
 
   /** Create a new Envelope with
@@ -116,22 +117,32 @@ class SimpleEnvelope(
 class SimpleChannel[T](implicit manifest: TypeTag[T]) extends Channel[T] {
   private lazy val queue = new LinkedTransferQueue[T]()
   private val uuid = UUID.randomUUID()
+    private val closed = new AtomicBoolean(false)
   Channel.addChannel(this)
  
   def send(v: T): Boolean = {
-    queue.add(v)
+    if (closed.get()) 
+      false
+    else     queue.add(v)
   }
 
-  def receive(): Box[T] = {
-    Helpers.tryo(queue.take())
-  }
 
+  /**
+    * Receive a message or timeout trying
+    *
+    * @param timeout the timeout duration in milliseconds
+    * @return
+    */
   def receive(timeout: Long): Box[T] = {
+    if (closed.get()) {
+      Empty
+    } else {
     val ret = Helpers.tryo(queue.poll(timeout, TimeUnit.MILLISECONDS))
     ret match {
       case Full(null) => Empty
       case x          => x
     }
+  }
   }
 
   def getUUID(): String = {
@@ -147,6 +158,10 @@ class SimpleChannel[T](implicit manifest: TypeTag[T]) extends Channel[T] {
     else Empty
   }
 
+def closed_?(): Boolean = closed.get()
+
+def close() {closed.set(true)}
+
   /**
     * Each channel has a unique UUID. Comparing two channels is
     * the comparison of the UUID and nothing else
@@ -160,18 +175,96 @@ class SimpleChannel[T](implicit manifest: TypeTag[T]) extends Channel[T] {
   }
 }
 
-trait Channel[T] {
+/**
+  * A Channel that can be sent to.
+  */
+trait SendChannel[T] {
+  /**
+    * Send a message to the channel
+    *
+    * @param v
+    * @return
+    */
   def send(v: T): Boolean
 
-  def receive(): Box[T]
-
-  def receive(timeout: Long): Box[T]
-
+  /**
+    * Get a UUID for this channel. The UUID can be used within
+    * the same Classloader to look up a channel
+    *
+    * @return the UUID of the channel
+    */
   def getUUID(): String
 
+  /**
+    * Get the URL of the Channel. The URL can be used anywhere
+    * (across a cluster) to locate a channel, even if the locus of
+    * the channel has migrated (e.g. a node goes down, the Quantum processing
+    * the channel has been brought up on another node)
+    *
+    * @return the URL of the channel
+    */
   def getURL(): String
 
+  /**
+    * Is the channel closed? This value may not be
+    * accurate as a remote channel may be closed, but
+    * a `SendChannel` proxy may not be updated.
+    * 
+    * @return true of the channel is no longer processing messages 
+    */
+    def closed_?(): Boolean
+}
+
+/**
+  * A channel that can only receive. This is a pair to `SendChannel`
+  */
+trait ReceiveChannel[T] {
+
+  /**
+    * Receive a message or timeout trying. If the `Channel` is
+    * closed, an `Empty` will be returned
+    *
+    * @param timeout the timeout duration in milliseconds
+    * @return
+    */
+  def receive(timeout: Long): Box[T]
+
+  /**
+    * Get a UUID for this channel. The UUID can be used within
+    * the same Classloader to look up a channel
+    *
+    * @return the UUID of the channel
+    */
+  def getUUID(): String
+
+    /**
+    * Get the URL of the Channel. The URL can be used anywhere
+    * (across a cluster) to locate a channel, even if the locus of
+    * the channel has migrated (e.g. a node goes down, the Quantum processing
+    * the channel has been brought up on another node)
+    *
+    * @return the URL of the channel
+    */
+  def getURL(): String
+
+  /**
+    * Test the `Channel` to see if it's closed
+    *
+    * @return
+    */
+    def closed_?(): Boolean
+}
+
+trait Channel[T] extends SendChannel[T] with ReceiveChannel[T] {
+
   def asA[A](implicit m: TypeTag[A]): Box[Channel[A]]
+
+  def close()
+
+  def closed_?(): Boolean
+
+
+
 }
 
 object Channel {
