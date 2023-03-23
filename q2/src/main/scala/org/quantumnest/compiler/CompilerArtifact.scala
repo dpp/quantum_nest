@@ -12,6 +12,12 @@ import net.liftweb.common.EmptyBox
 trait CompilerArtifact {}
 
 object CompilerArtifact {
+  def strToJson(str: String): Box[JValue] = {
+    Helpers.tryo {
+      parse(str)
+    }
+  }
+
   def readArtifact(str: String): Box[CompilerArtifact] = {
     val jv = Helpers.tryo {
       parse(str)

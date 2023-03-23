@@ -158,7 +158,7 @@ class SimpleChannel[T](implicit manifest: TypeTag[T]) extends Channel[T] {
     else Empty
   }
 
-def closed_?(): Boolean = closed.get()
+def closed_? : Boolean = closed.get()
 
 def close() {closed.set(true)}
 
@@ -212,7 +212,7 @@ trait SendChannel[T] {
     * 
     * @return true of the channel is no longer processing messages 
     */
-    def closed_?(): Boolean
+    def closed_? : Boolean
 }
 
 /**
@@ -252,7 +252,7 @@ trait ReceiveChannel[T] {
     *
     * @return
     */
-    def closed_?(): Boolean
+    def closed_? : Boolean
 }
 
 trait Channel[T] extends SendChannel[T] with ReceiveChannel[T] {
@@ -261,7 +261,7 @@ trait Channel[T] extends SendChannel[T] with ReceiveChannel[T] {
 
   def close()
 
-  def closed_?(): Boolean
+  def closed_? : Boolean
 
 
 
