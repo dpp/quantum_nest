@@ -36,8 +36,8 @@
             "exec": "(-> it :query-params :resource :#computed)"
         },
         "user-info": {
-            "from_message": "get-user-info#response",
-            "exec": "(it :body)"
+            "from_message": {"from": "get-user-info#response", "var": "meow"},
+            "exec": "(:body meow)"
         },
         "timed-out": {
             "from_message": "timeout#response"

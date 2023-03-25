@@ -8,6 +8,13 @@ import clojure.lang.IFn
 import scala.jdk.CollectionConverters._
 import net.liftweb.util.Helpers
 import net.liftweb.common.Box
+import clojure.lang.{ISeq, Keyword}
+import clojure.lang.PersistentList
+import clojure.lang.IPersistentList
+import clojure.lang.IPersistentCollection
+import clojure.lang.PersistentVector
+import clojure.lang.PersistentHashMap
+import clojure.lang.IPersistentMap
 
 object Util {
   lazy val ClojureRequire = RT.`var`("clojure.core", "require");
@@ -22,8 +29,8 @@ object Util {
 
   def compileCode(
       namespace: String,
-      code: List[(String, List[String], String)]
-  ): Map[String, IFn] = {
+      code: Seq[(String, Seq[String], String)]
+  ): Box[Map[String, IFn]] = {
 
     val theCode: java.util.List[java.util.List[Object]] =
       new java.util.ArrayList()
@@ -36,22 +43,25 @@ object Util {
 
       theCode.add(inner)
     }
-    compiler
-      .invoke(
-        namespace,
-        theCode
-      )
-      .asInstanceOf[java.util.Map[String, IFn]]
-      .asScala
-      .toMap
+    Helpers.tryo(
+      compiler
+        .invoke(
+          namespace,
+          theCode
+        )
+        .asInstanceOf[java.util.Map[String, IFn]]
+        .asScala
+        .toMap
+    )
 
   }
 
-  /**
-    * Evaluate a String that represents a Clojure expression
+  /** Evaluate a String that represents a Clojure expression
     *
-    * @param s the Clojure expression
-    * @return the value rendered by the expression
+    * @param s
+    *   the Clojure expression
+    * @return
+    *   the value rendered by the expression
     */
   def eval(s: String): Box[Object] = {
     val parsed = Clojure.read(s)
@@ -63,8 +73,68 @@ object Util {
     ret
   }
 
-  def symbolFor(s: String): Symbol =
-    Symbol.create(s)
+  def keywordFor(s: String): Keyword =
+    Keyword.intern(s)
 
-  
+    /** Create a persistent list of items from a Scala seq
+      *
+      * @param in
+      *   the list of objects to turn into a Clojure collection (List)
+      * @return
+      *   a Clojure collection (list)
+      */
+  def toClojureVector[A](in: Seq[A]): IPersistentCollection = {
+    in.foldLeft[IPersistentCollection](clojureEmptyVector()) { (lst, item) =>
+      append(lst, item)
+    }
+  }
+
+  def clojureEmptyVector(): PersistentVector = PersistentVector.EMPTY
+
+  def append(lst: IPersistentCollection, item: Any): IPersistentCollection = {
+    lst.cons(item)
+  }
+
+  def clojureEmptyMap(): IPersistentMap = PersistentHashMap.EMPTY
+
+  /** Appends a key/value pair to a Clojure PersistentMap
+    *
+    * @param map
+    *   the incoming `Map`
+    * @param key
+    *   the key to set
+    * @param value
+    *   the value to set
+    * @return
+    *   the updated map
+    */
+  def appendToMap(map: IPersistentMap, key: Any, value: Any): IPersistentMap = {
+    map.assoc(key, value)
+  }
+
+  def appendSymKeyToMap(
+      map: IPersistentMap,
+      key: Any,
+      value: Any
+  ): IPersistentMap = {
+    map.assoc(
+      key match {
+        case s: Symbol => s
+        case s: String => keywordFor(s)
+        case null      => keywordFor("null")
+        case s         => appendSymKeyToMap(map, key.toString(), value)
+      },
+      value
+    )
+  }
+
+  def appendSymKeysToMap(
+      map: IPersistentMap,
+      pairs: (Any, Any)*
+  ): IPersistentMap = {
+    pairs.foldLeft(map) { case (m, (k, v)) => appendSymKeyToMap(m, k, v) }
+  }
+
+  def clojureMap(pairs: (Any, Any)*): IPersistentMap =
+    appendSymKeysToMap(clojureEmptyMap(), pairs: _*)
 }

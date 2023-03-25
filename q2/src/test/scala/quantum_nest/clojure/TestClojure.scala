@@ -12,7 +12,7 @@ class ClojureStuff extends munit.FunSuite {
 
     assert(gotFoo == Full(42))
 
-    val what = Util.compileCode("wombat", List(("dog", List("x"), "(* x 2)")))
+    val what = Util.compileCode("wombat", List(("dog", List("x"), "(* x 2)"))).openOrThrowException("Should compile")
 
     val res = what("dog").invoke(75)
 
@@ -40,7 +40,7 @@ class ClojureStuff extends munit.FunSuite {
   }
 
   test("Create a symbol") {
-    val symbol = Util.symbolFor("hello")
+    val symbol = Util.keywordFor("hello")
 
     assertEquals("hello", symbol.getName())
   }

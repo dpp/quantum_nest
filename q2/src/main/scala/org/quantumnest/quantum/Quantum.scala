@@ -9,8 +9,13 @@ import net.liftweb.common.Empty
 import net.liftweb.common.EmptyBox
 import scala.reflect.runtime.universe._
 import java.util.UUID
-import net.liftweb.json.JsonAST
+import net.liftweb.json.{JsonAST}
+import JsonAST._
 import net.liftweb.common.Failure
+import clojure.lang.IFn
+import org.quantumnest.clojure.Util
+import clojure.lang.ISeq
+import net.liftweb.util.Helpers
 
 /**
   * An executing Quantum
@@ -87,13 +92,159 @@ trait QuantumDefinition {
 
 }
 
-case class StateDef(name: String)
+/**
+  * 
+  */
+sealed trait PredicateSource {
+  def varName: Box[String]
+
+  def updateVarName(newVarName: String): PredicateSource
+}
+
+object PredicateSource {
+    def fromJObject(obj: JsonAST.JField): Vector[Box[PredicateSource]] = {
+        obj match {
+            case JsonAST.JField("from_message", info) => predicateInfo(info).map{ case Full((name, varName)) => Full(FromMessageSource(name, varName)); case Empty => Empty; case f: Failure => f}
+            case JsonAST.JField("from_state", info) => predicateInfo(info).map{ case Full((name, varName)) => Full(FromStateSource(name, varName)); case Empty => Empty; case f: Failure => f}
+            case _ => Vector()
+        }
+    }
+
+    def predicateInfo(obj: JValue): Vector[Box[(String, Box[String])]] = {
+      obj match {
+        case JString(v) => Vector(Full((v, Empty)))
+        case JsonAST.JArray(lst) => lst.toVector.flatMap(predicateInfo(_)) 
+        case jo: JObject => {
+          (jo \ "from", jo \ "var") match {
+            case (JString(from), JString(variable)) => Vector(Full((from, Full(variable.trim()))))
+            case (JString(from), bad) => Vector(Full((from, Failure(f"Could not convert ${bad} into a variable name"))))
+            case bad => Vector(Failure(f"Could not get `from` and `var` from ${bad}"))
+          }
+        }
+        case other => Vector(Failure(f"Could not get predicate `from` and `var` from ${other}"))
+      }
+    }
+}
+
+case class ExecFunction(func: IFn, variables: Vector[String]) {
+  def exec(in: Map[String, Any]): Box[Object] = {
+
+    val toPass: Vector[Any] = variables.map(v => in.get(v).getOrElse(null))
+Helpers.tryo(    toPass match {
+  case Vector() => func.invoke()
+  case Vector(a) =>  func.invoke(a)
+  case Vector(a,b) => func.invoke(a,b)
+  case Vector(a,b, c) => func.invoke(a,b, c)
+  case Vector(a,b, c, d) => func.invoke(a,b, c, d)
+  case Vector(a,b, c, d, e) => func.invoke(a,b, c, d, e)
+  case Vector(a,b, c, d, e, f) => func.invoke(a,b, c, d, e, f)
+  case Vector(a,b, c, d, e, f, g) => func.invoke(a,b, c, d, e, f, g)
+  case Vector(a,b, c, d, e, f, g, h) => func.invoke(a,b, c, d, e, f, g, h)
+  case _ => func.applyTo(Util.toClojureVector(toPass).seq) 
+})
+  }
+}
+
+object ExecFunction {
+  def fromJObject(namespace: String, obj: JsonAST.JField, variables: Vector[String]): Box[ExecFunction] = {
+    if (obj.name == "exec") {
+      obj.value match {
+        case JsonAST.JString(toExec) => {
+          val funcName = Misc.randomUUIDBasedNamespace()
+          val code = Util.compileCode(namespace, List((funcName, variables, toExec)))
+          val theFn = code.flatMap(v => v.get(funcName))
+
+          theFn match {
+            case Empty => Empty
+            case v: Failure => v 
+            case Full(compiledFn) => Full(ExecFunction(compiledFn, variables))
+          }
+        }
+        case v => Failure(f"Could not create an execution block with ${v}")
+      }
+    } else
+    Empty
+  }
+}
+
+final case class FromMessageSource(message: String, varName: Box[String]) extends PredicateSource {
+  def updateVarName(newVarName: String): PredicateSource = FromMessageSource(message, Full(newVarName))
+}
+final case class FromStateSource(state: String, varName: Box[String]) extends PredicateSource {
+  def updateVarName(newVarName: String): PredicateSource = FromStateSource(state, Full(newVarName))
+}
+
+case class StateDef(name: String, predicates: Seq[PredicateSource], toExec: Box[ExecFunction]) 
+
+object StateDef {
+    def from(namespace: String, definition: JsonAST.JField): Box[StateDef] = {
+        val name = definition.name
+        definition.value match {
+            case JsonAST.JObject(fields) => {
+                val predicatesBase = fields.flatMap(f => PredicateSource.fromJObject(f)).toVector
+
+                val failedPredicates = predicatesBase.flatMap{ case f: Failure => List(f); case _ => Nil }
+                val predicatesPre = predicatesBase.flatMap{v => v}
+
+                val (predicates, varNames) = {
+                  var cnt = 0
+                  val p2 = predicatesPre.map{
+                    // set a name for all un-named variables
+                    case p if p.varName.isEmpty => {
+                      val newName = if (cnt == 0) "it" else f"it_${cnt}"
+                      cnt = cnt + 1
+                      p.updateVarName(newName)
+                    }
+                    case p => p
+                  }
+
+                  (p2, p2.flatMap(_.varName))
+                }
+                // build the execs
+                val execStuff = fields.map(f => ExecFunction.fromJObject(namespace, f, varNames)).toVector
+
+                val execFailures = execStuff.flatMap{
+                  case v: Failure => Full(v)
+                  case _ => Empty
+                }.appendedAll(failedPredicates)
+
+                val execs = execStuff.flatMap(v => v)
+
+                if (predicates.length == 0) {
+                  Failure(f"No predicates defined for ${name}")
+                }
+                else if (execFailures.length > 0) {
+
+                  val returnList = Failure(f"Unable to compile State information for ${name}") :: execFailures.toList
+
+                  def chainFailures(ff: List[Failure]): Failure = {
+                    ff match {
+                      case Nil => Failure("Empty chain list")
+                      case v :: Nil => v
+                      case v :: rest => Failure(v.msg, v.exception, Full(chainFailures(rest)))
+                    }
+                  }
+
+                  chainFailures(returnList)
+                } else if (execs.length > 1) {
+                  Failure(f"Only one execution block allowed for State ${name}")
+                } else if (execs.length == 0 && predicates.length > 1) {
+                  Failure(f"For State ${name}, there are ${predicates.length} but no function to convert them into a value")
+                } else {
+                  Full(StateDef(name, predicates, execs.headOption))
+                }
+            }
+            case v => Failure(f"Could not create a State definition for ${name} because value isn't an Object, but `${v}`")
+        }
+        
+    }
+}
 
 object Quantum {
-    def extractState(obj: JsonAST.JValue): Box[Seq[StateDef]] = {
+    def extractState(namespace: String, obj: JsonAST.JValue): Box[Seq[Box[StateDef]]] = {
     obj \ "state" match {
         case JsonAST.JNull => Full(Nil)
-        case JsonAST.JObject(v) => Full(v.map(f => StateDef(f.name)))
+        case JsonAST.JObject(v) => Full(v.map(f => StateDef.from(namespace, f)))
         case v => Failure(f"The 'state' definition is not an Object, it's ${v}")
     }
   }
