@@ -1,6 +1,5 @@
 package org.quantumnest.compiler
 
-
 import net.liftweb.json.JsonAST
 import net.liftweb.common.Box
 import net.liftweb.json.JsonDSL._
@@ -64,4 +63,3 @@ object Definition {
 
   }
 }
-

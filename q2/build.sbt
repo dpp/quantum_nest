@@ -16,6 +16,6 @@ lazy val root = project
       "com.cnuernber" % "charred" % "1.018",
       "com.apicatalog" % "titanium-json-ld" % "1.3.1",
       "net.liftweb" %% "lift-json" % "3.5.0",
-      "net.liftweb" %% "lift-util" % "3.5.0",
-    ),
+      "net.liftweb" %% "lift-util" % "3.5.0"
+    )
   )

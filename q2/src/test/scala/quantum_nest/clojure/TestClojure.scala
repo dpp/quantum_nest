@@ -12,7 +12,9 @@ class ClojureStuff extends munit.FunSuite {
 
     assert(gotFoo == Full(42))
 
-    val what = Util.compileCode("wombat", List(("dog", List("x"), "(* x 2)"))).openOrThrowException("Should compile")
+    val what = Util
+      .compileCode("wombat", List(("dog", List("x"), "(* x 2)")))
+      .openOrThrowException("Should compile")
 
     val res = what("dog").invoke(75)
 

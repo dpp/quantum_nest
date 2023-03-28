@@ -41,7 +41,12 @@
         },
         "timed-out": {
             "from_message": "timeout#response"
-        }
+        },
+        "multi": [
+            {"from_state": {"from": "user", "var": "user"}},
+            {"from_state": {"from": "user-info", "var": "info"}},
+            {"exec": "(str user info)"}
+        ]
     },
     "messages": {
         "get-user-info": {

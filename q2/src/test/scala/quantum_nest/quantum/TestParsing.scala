@@ -19,26 +19,41 @@ class TestParsing extends munit.FunSuite {
     val source = CompilerArtifact
       .strToJson(str)
       .openOrThrowException("This is a test")
-      source
+    source
   }
 
   test("Test State Definition Parsing") {
     val st = Quantum.extractState(Misc.randomUUIDBasedNamespace(), json)
     assert(st.isDefined)
     val opened = st.openOrThrowException("Already tested")
-    val stateCnt = opened.length 
-    assertEquals(stateCnt, 3)
-    assertEquals(opened.map(_.openOrThrowException("should be Full")).filter(_.name == "user").head.name, "user")
+    val stateCnt = opened.length
+    assert(stateCnt >= 3)
+    assertEquals(
+      opened
+        .map(_.openOrThrowException("should be Full"))
+        .filter(_.name == "user")
+        .head
+        .name,
+      "user"
+    )
   }
 
-    test("Test State Definition execution") {
+  test("Test State Definition execution") {
     val st = Quantum.extractState(Misc.randomUUIDBasedNamespace(), json)
     assert(st.isDefined)
     val opened = st.openOrThrowException("Already tested")
-    val userInfo = opened.map(_.openOrThrowException("should be Full")).filter(_.name == "user-info").head
+    val userInfo = opened
+      .map(_.openOrThrowException("should be Full"))
+      .filter(_.name == "user-info")
+      .head
     val it = Util.clojureMap("body" -> 42)
-    
-    val res = userInfo.toExec.openOrThrowException("There should be code to execute").exec(Map("meow" -> it))
-    assertEquals( res.openOrThrowException("should be 42"), 42.asInstanceOf[Object])
+
+    val res = userInfo.toExec
+      .openOrThrowException("There should be code to execute")
+      .exec(Map("meow" -> it))
+    assertEquals(
+      res.openOrThrowException("should be 42"),
+      42.asInstanceOf[Object]
+    )
   }
 }

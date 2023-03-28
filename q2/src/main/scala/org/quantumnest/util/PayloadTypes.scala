@@ -1,7 +1,6 @@
 package org.quantumnest.util
 
-/**
-  * Envelopes have a payload type... what's the type of the shape of data?
+/** Envelopes have a payload type... what's the type of the shape of data?
   * Here's an enumeration
   */
 sealed trait PayloadType

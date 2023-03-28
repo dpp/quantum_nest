@@ -8,19 +8,23 @@ import java.net.InetSocketAddress
 import org.quantumnest.util.{Channel, MessageValue}
 
 object Server {
-  def start(commChannel: Channel[MessageValue.MessageShape]) {
-    
+  def start(commChannel: Channel[MessageValue.MessageShape]): Unit = {
+
     val server = HttpServer.create(new InetSocketAddress(8000), 0);
     server.createContext("/", new Server(commChannel));
-    server.setExecutor(Executors.newVirtualThreadPerTaskExecutor()); // creates a default executor
+    server.setExecutor(
+      Executors.newVirtualThreadPerTaskExecutor()
+    ); // creates a default executor
     server.start();
 
   }
 }
 
-class Server(commChannel: Channel[MessageValue.MessageShape]) extends HttpHandler {
+class Server(commChannel: Channel[MessageValue.MessageShape])
+    extends HttpHandler {
   private val routes: AtomicReference[Object] = new AtomicReference()
-  private val executor: ExecutorService = Executors.newVirtualThreadPerTaskExecutor() // Executors.newFixedThreadPool(10);
+  private val executor: ExecutorService = Executors
+    .newVirtualThreadPerTaskExecutor() // Executors.newFixedThreadPool(10);
   override def handle(request: HttpExchange): Unit = {
     executor.submit(new Runnable {
       override def run(): Unit = threadedHandle(request)
@@ -29,11 +33,10 @@ class Server(commChannel: Channel[MessageValue.MessageShape]) extends HttpHandle
   }
 
   private def threadedHandle(request: HttpExchange): Unit = {
-   
+
     val method = request.getRequestMethod()
     val uri = request.getRequestURI()
     uri.getRawPath()
-   
 
     val response = f"This is the response ${uri.getRawPath()}\n\n";
     request.sendResponseHeaders(200, response.length())

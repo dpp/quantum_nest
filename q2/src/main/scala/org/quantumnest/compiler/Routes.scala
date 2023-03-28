@@ -7,7 +7,7 @@ import net.liftweb.json.Serialization.{read, write}
 import net.liftweb.common.{Box, Full, Empty, EmptyBox}
 import net.liftweb.util.Helpers
 
-case class Routes(routes: List[Route]) extends CompilerArtifact 
+case class Routes(routes: List[Route]) extends CompilerArtifact
 
 object Routes {
   implicit val formats =
@@ -34,7 +34,6 @@ object Routes {
     write(source)
   }
 }
-
 
 case class Route(
     method: String,
@@ -75,4 +74,3 @@ object Route {
     write(source)
   }
 }
-

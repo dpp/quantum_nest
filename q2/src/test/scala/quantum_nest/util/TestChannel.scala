@@ -77,6 +77,9 @@ class TestChannel extends munit.FunSuite {
   }
 
   test("Misc UUID generation") {
-    assertNotEquals(Misc.randomUUIDBasedNamespace(), Misc.randomUUIDBasedNamespace())
+    assertNotEquals(
+      Misc.randomUUIDBasedNamespace(),
+      Misc.randomUUIDBasedNamespace()
+    )
   }
 }
