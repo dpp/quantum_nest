@@ -15,6 +15,11 @@ import clojure.lang.IPersistentCollection
 import clojure.lang.PersistentVector
 import clojure.lang.PersistentHashMap
 import clojure.lang.IPersistentMap
+import net.liftweb.json.JsonAST
+import net.liftweb.common.Empty
+import net.liftweb.common.Failure
+import net.liftweb.common.Full
+import org.quantumnest.util.Misc 
 
 object Util {
   lazy val ClojureRequire = RT.`var`("clojure.core", "require");
@@ -137,4 +142,50 @@ object Util {
 
   def clojureMap(pairs: (Any, Any)*): IPersistentMap =
     appendSymKeysToMap(clojureEmptyMap(), pairs: _*)
+}
+
+case class ExecFunction(func: IFn, variables: Vector[String]) {
+  def exec(in: Map[String, Any]): Box[Object] = {
+
+    val toPass: Vector[Any] = variables.map(v => in.get(v).getOrElse(null))
+    Helpers.tryo(toPass match {
+      case Vector()                       => func.invoke()
+      case Vector(a)                      => func.invoke(a)
+      case Vector(a, b)                   => func.invoke(a, b)
+      case Vector(a, b, c)                => func.invoke(a, b, c)
+      case Vector(a, b, c, d)             => func.invoke(a, b, c, d)
+      case Vector(a, b, c, d, e)          => func.invoke(a, b, c, d, e)
+      case Vector(a, b, c, d, e, f)       => func.invoke(a, b, c, d, e, f)
+      case Vector(a, b, c, d, e, f, g)    => func.invoke(a, b, c, d, e, f, g)
+      case Vector(a, b, c, d, e, f, g, h) => func.invoke(a, b, c, d, e, f, g, h)
+      case _ => func.applyTo(Util.toClojureVector(toPass).seq)
+    })
+  }
+}
+
+object ExecFunction {
+  def fromJObject(
+      namespace: String,
+      obj: JsonAST.JField,
+      variables: Vector[String]
+  ): Box[ExecFunction] = {
+    if (obj.name == "exec") {
+      obj.value match {
+        case JsonAST.JString(toExec) => {
+          val funcName = Misc.randomUUIDBasedNamespace()
+          val code =
+            Util.compileCode(namespace, List((funcName, variables, toExec)))
+          val theFn = code.flatMap(v => v.get(funcName))
+
+          theFn match {
+            case Empty            => Empty
+            case v: Failure       => v
+            case Full(compiledFn) => Full(ExecFunction(compiledFn, variables))
+          }
+        }
+        case v => Failure(f"Could not create an execution block with ${v}")
+      }
+    } else
+      Empty
+  }
 }

@@ -16,6 +16,7 @@ import clojure.lang.IFn
 import org.quantumnest.clojure.Util
 import clojure.lang.ISeq
 import net.liftweb.util.Helpers
+import org.quantumnest.clojure.ExecFunction
 
 /** An executing Quantum
   */
@@ -36,7 +37,7 @@ trait Quantum {
     * @return
     *   true if the message was queued
     */
-  def sendMessage(msg: Envelope): Boolean = {
+  def deliverMessage(msg: Envelope): Boolean = {
     this.mainChannel match {
       case Full(ch) => ch.send(msg)
       case _        => false
@@ -78,7 +79,7 @@ trait Quantum {
   /** Get the definition of the Quantum instance
     *
     * @return
-    *   the defintion
+    *   the definition
     */
   def definition: QuantumDefinition
 }
@@ -143,51 +144,6 @@ object PredicateSource {
   }
 }
 
-case class ExecFunction(func: IFn, variables: Vector[String]) {
-  def exec(in: Map[String, Any]): Box[Object] = {
-
-    val toPass: Vector[Any] = variables.map(v => in.get(v).getOrElse(null))
-    Helpers.tryo(toPass match {
-      case Vector()                       => func.invoke()
-      case Vector(a)                      => func.invoke(a)
-      case Vector(a, b)                   => func.invoke(a, b)
-      case Vector(a, b, c)                => func.invoke(a, b, c)
-      case Vector(a, b, c, d)             => func.invoke(a, b, c, d)
-      case Vector(a, b, c, d, e)          => func.invoke(a, b, c, d, e)
-      case Vector(a, b, c, d, e, f)       => func.invoke(a, b, c, d, e, f)
-      case Vector(a, b, c, d, e, f, g)    => func.invoke(a, b, c, d, e, f, g)
-      case Vector(a, b, c, d, e, f, g, h) => func.invoke(a, b, c, d, e, f, g, h)
-      case _ => func.applyTo(Util.toClojureVector(toPass).seq)
-    })
-  }
-}
-
-object ExecFunction {
-  def fromJObject(
-      namespace: String,
-      obj: JsonAST.JField,
-      variables: Vector[String]
-  ): Box[ExecFunction] = {
-    if (obj.name == "exec") {
-      obj.value match {
-        case JsonAST.JString(toExec) => {
-          val funcName = Misc.randomUUIDBasedNamespace()
-          val code =
-            Util.compileCode(namespace, List((funcName, variables, toExec)))
-          val theFn = code.flatMap(v => v.get(funcName))
-
-          theFn match {
-            case Empty            => Empty
-            case v: Failure       => v
-            case Full(compiledFn) => Full(ExecFunction(compiledFn, variables))
-          }
-        }
-        case v => Failure(f"Could not create an execution block with ${v}")
-      }
-    } else
-      Empty
-  }
-}
 
 final case class FromMessageSource(message: String, varName: Box[String])
     extends PredicateSource {
@@ -312,6 +268,7 @@ class SimpleQuantum(val definition: QuantumDefinition, val name: String)
     extends Quantum {
 
   val states = new AtomicReference[Map[String, State[_]]]()
+  val messages = new AtomicReference[Map[String, Message]]
   val running = new AtomicBoolean(true)
   val channel = Channel[Envelope]()
   val theUuid = Misc.randomUUIDBasedNamespace()
@@ -335,17 +292,7 @@ class SimpleQuantum(val definition: QuantumDefinition, val name: String)
       }
     })
 
-  class State[T](
-      val name: String,
-      val predicates: Vector[Predicate],
-      val dependents: Vector[Predicate]
-  )(implicit val manifest: TypeTag[T])
-      extends ReadonlyState[T] {
-    val data = new AtomicReference[Box[T]]()
-    def value: Box[T] = data.get()
-    def resolved_? : Boolean = data.get().isDefined
-    def owner: Quantum = SimpleQuantum.this
-  }
+
 
   /** For a given state name, get the `ReadonlyState`
     *
@@ -419,12 +366,12 @@ trait ReadonlyState[T] {
     *
     * @return
     */
-  def predicates: Seq[Predicate]
+  def predicates: Seq[PredicateSource]
 }
 
-/** A Predicate for a particular State
-  */
-sealed trait Predicate
+// /** A Predicate for a particular State
+//   */
+// sealed trait Predicate
 
-final case class StatePredicate(name: String) extends Predicate
-final case class MessagePredicate(name: String) extends Predicate
+// final case class StatePredicate(name: String) extends Predicate
+// final case class MessagePredicate(name: String) extends Predicate
